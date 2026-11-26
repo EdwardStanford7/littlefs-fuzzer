@@ -23,9 +23,8 @@ struct ram_bd {
     uint8_t bytes[BLOCK_SIZE * BLOCK_COUNT];
 };
 
-static int bd_read(const struct lfs_config *cfg, lfs_block_t block,
-        lfs_off_t off, void *buffer, lfs_size_t size) {
-    struct ram_bd *bd = cfg->context;
+static int bd_read(const struct lfs_config* cfg, lfs_block_t block, lfs_off_t off, void* buffer, lfs_size_t size) {
+    struct ram_bd* bd = cfg->context;
     if (block >= BLOCK_COUNT || off > BLOCK_SIZE || size > BLOCK_SIZE - off)
         return LFS_ERR_CORRUPT;
     memcpy(buffer, bd->bytes + block * BLOCK_SIZE + off, size);
@@ -33,11 +32,10 @@ static int bd_read(const struct lfs_config *cfg, lfs_block_t block,
 }
 
 /* NOR flash can only change a bit from one to zero between erases. */
-static int bd_prog(const struct lfs_config *cfg, lfs_block_t block,
-        lfs_off_t off, const void *buffer, lfs_size_t size) {
-    struct ram_bd *bd = cfg->context;
-    const uint8_t *src = buffer;
-    uint8_t *dst;
+static int bd_prog(const struct lfs_config* cfg, lfs_block_t block, lfs_off_t off, const void* buffer, lfs_size_t size) {
+    struct ram_bd* bd = cfg->context;
+    const uint8_t* src = buffer;
+    uint8_t* dst;
     lfs_size_t i;
 
     if (block >= BLOCK_COUNT || off > BLOCK_SIZE || size > BLOCK_SIZE - off)
@@ -51,44 +49,48 @@ static int bd_prog(const struct lfs_config *cfg, lfs_block_t block,
     return 0;
 }
 
-static int bd_erase(const struct lfs_config *cfg, lfs_block_t block) {
-    struct ram_bd *bd = cfg->context;
+static int bd_erase(const struct lfs_config* cfg, lfs_block_t block) {
+    struct ram_bd* bd = cfg->context;
     if (block >= BLOCK_COUNT)
         return LFS_ERR_CORRUPT;
     memset(bd->bytes + block * BLOCK_SIZE, 0xff, BLOCK_SIZE);
     return 0;
 }
 
-static int bd_sync(const struct lfs_config *cfg) {
+static int bd_sync(const struct lfs_config* cfg) {
     (void)cfg;
     return 0;
 }
 
 static const struct lfs_config cfg_template = {
-    .read = bd_read, .prog = bd_prog, .erase = bd_erase, .sync = bd_sync,
-    .read_size = 16, .prog_size = 16,
-    .block_size = BLOCK_SIZE, .block_count = BLOCK_COUNT,
-    .block_cycles = 17, .cache_size = 64, .lookahead_size = 16,
+    .read = bd_read,
+    .prog = bd_prog,
+    .erase = bd_erase,
+    .sync = bd_sync,
+    .read_size = 16,
+    .prog_size = 16,
+    .block_size = BLOCK_SIZE,
+    .block_count = BLOCK_COUNT,
+    .block_cycles = 17,
+    .cache_size = 64,
+    .lookahead_size = 16,
 };
 
-static void path_for(char *path, size_t path_size, unsigned id, int nested) {
+static void path_for(char* path, size_t path_size, unsigned id, int nested) {
     if (nested)
         snprintf(path, path_size, "/d%u/f%u", (id >> 3) & 3, id & 7);
     else
         snprintf(path, path_size, "/f%u", id & 7);
 }
 
-static void file_op(lfs_t *lfs, const char *path, unsigned op,
-        unsigned arg, const uint8_t *data) {
+static void file_op(lfs_t* lfs, const char* path, unsigned op, unsigned arg, const uint8_t* data) {
     lfs_file_t file;
-    struct lfs_attr attr = { .type = (uint8_t)(arg >> 8),
-        .buffer = (void *)data, .size = (arg & 15) + 1 };
-    struct lfs_file_config file_cfg = { .attrs = &attr, .attr_count = 1 };
+    struct lfs_attr attr = {.type = (uint8_t)(arg >> 8), .buffer = (void*)data, .size = (arg & 15) + 1};
+    struct lfs_file_config file_cfg = {.attrs = &attr, .attr_count = 1};
     uint8_t buffer[DATA_MAX];
     lfs_ssize_t result;
 
-    if (lfs_file_opencfg(lfs, &file, path,
-            LFS_O_RDWR | LFS_O_CREAT, &file_cfg) != 0)
+    if (lfs_file_opencfg(lfs, &file, path, LFS_O_RDWR | LFS_O_CREAT, &file_cfg) != 0)
         return;
     switch (op) {
     case 0: /* append/write */
@@ -114,7 +116,7 @@ static void file_op(lfs_t *lfs, const char *path, unsigned op,
     (void)lfs_file_close(lfs, &file);
 }
 
-static void list_dir(lfs_t *lfs, const char *path, unsigned limit) {
+static void list_dir(lfs_t* lfs, const char* path, unsigned limit) {
     lfs_dir_t dir;
     struct lfs_info info;
     unsigned i;
@@ -128,14 +130,14 @@ static void list_dir(lfs_t *lfs, const char *path, unsigned limit) {
     (void)lfs_dir_close(lfs, &dir);
 }
 
-static void remount(lfs_t *lfs, const struct lfs_config *cfg, int *mounted) {
+static void remount(lfs_t* lfs, const struct lfs_config* cfg, int* mounted) {
     if (*mounted)
         (void)lfs_unmount(lfs);
     memset(lfs, 0, sizeof(*lfs));
     *mounted = lfs_mount(lfs, cfg) == 0;
 }
 
-static void run_case(const uint8_t *input, size_t length) {
+static void run_case(const uint8_t* input, size_t length) {
     struct ram_bd bd;
     struct lfs_config cfg = cfg_template;
     lfs_t lfs;
@@ -167,29 +169,77 @@ static void run_case(const uint8_t *input, size_t length) {
         snprintf(dir, sizeof(dir), "/d%u", (id >> 3) & 3);
 
         switch (code) {
-        case 0: case 1: case 2: case 3: case 4:
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+        case 4:
             file_op(&lfs, a, code, arg, data);
             break;
-        case 5: (void)lfs_mkdir(&lfs, dir); break;
-        case 6: (void)lfs_remove(&lfs, a); break;
-        case 7: (void)lfs_remove(&lfs, dir); break;
-        case 8: (void)lfs_rename(&lfs, a, b); break;
-        case 9: (void)lfs_setattr(&lfs, a, (uint8_t)arg, data, (arg & 15) + 1); break;
-        case 10: { uint8_t value[16]; (void)lfs_getattr(&lfs, a, (uint8_t)arg, value, sizeof(value)); break; }
-        case 11: (void)lfs_removeattr(&lfs, a, (uint8_t)arg); break;
-        case 12: list_dir(&lfs, "/", (arg & 15) + 1); break;
-        case 13: list_dir(&lfs, dir, (arg & 15) + 1); break;
-        case 14: { struct lfs_info info; (void)lfs_stat(&lfs, a, &info); break; }
-        case 15: (void)lfs_fs_size(&lfs); (void)lfs_fs_gc(&lfs); break;
+        case 5:
+            (void)lfs_mkdir(&lfs, dir);
+            break;
+        case 6:
+            (void)lfs_remove(&lfs, a);
+            break;
+        case 7:
+            (void)lfs_remove(&lfs, dir);
+            break;
+        case 8:
+            (void)lfs_rename(&lfs, a, b);
+            break;
+        case 9:
+            (void)lfs_setattr(&lfs, a, (uint8_t)arg, data, (arg & 15) + 1);
+            break;
+        case 10: {
+            uint8_t value[16];
+            (void)lfs_getattr(&lfs, a, (uint8_t)arg, value, sizeof(value));
+            break;
+        }
+        case 11:
+            (void)lfs_removeattr(&lfs, a, (uint8_t)arg);
+            break;
+        case 12:
+            list_dir(&lfs, "/", (arg & 15) + 1);
+            break;
+        case 13:
+            list_dir(&lfs, dir, (arg & 15) + 1);
+            break;
+        case 14: {
+            struct lfs_info info;
+            (void)lfs_stat(&lfs, a, &info);
+            break;
+        }
+        case 15:
+            (void)lfs_fs_size(&lfs);
+            (void)lfs_fs_gc(&lfs);
+            break;
         case 16: /* Raw 1->0 corruption, followed by a recovery attempt. */
             bd.bytes[(arg % BLOCK_COUNT) * BLOCK_SIZE + (id % BLOCK_SIZE)] &= input[pos + 3];
             remount(&lfs, &cfg, &mounted);
             break;
-        case 17: remount(&lfs, &cfg, &mounted); break;
-        case 18: if (mounted) (void)lfs_unmount(&lfs); mounted = 0; break;
-        case 19: if (!mounted) remount(&lfs, &cfg, &mounted); break;
-        case 20: if (mounted) { (void)lfs_unmount(&lfs); memset(&lfs, 0, sizeof(lfs)); (void)lfs_format(&lfs, &cfg); mounted = lfs_mount(&lfs, &cfg) == 0; } break;
-        default: break;
+        case 17:
+            remount(&lfs, &cfg, &mounted);
+            break;
+        case 18:
+            if (mounted)
+                (void)lfs_unmount(&lfs);
+            mounted = 0;
+            break;
+        case 19:
+            if (!mounted)
+                remount(&lfs, &cfg, &mounted);
+            break;
+        case 20:
+            if (mounted) {
+                (void)lfs_unmount(&lfs);
+                memset(&lfs, 0, sizeof(lfs));
+                (void)lfs_format(&lfs, &cfg);
+                mounted = lfs_mount(&lfs, &cfg) == 0;
+            }
+            break;
+        default:
+            break;
         }
     }
     if (mounted)

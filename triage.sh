@@ -52,7 +52,7 @@ for input in "${inputs[@]}"; do
     signature_lines=$(sed -E \
         -e 's/0x[0-9a-f]+/ADDR/g' -e 's/\+0x[0-9a-f]+/+OFF/g' \
         -e 's/:[0-9]+/:LINE/g' "$log" | \
-        rg -m 12 'ERROR:|SUMMARY:|#[0-9]+|runtime error:' || true)
+        rg -m 12 'ERROR:|SUMMARY:|#[0-9]+|runtime error:|Assertion failed:' || true)
     if [[ -n "$signature_lines" ]]; then
         signature=$(printf '%s\n' "$signature_lines" | shasum -a 256 | awk '{print $1}')
     else
